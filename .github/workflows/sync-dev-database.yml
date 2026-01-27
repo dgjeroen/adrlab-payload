@@ -2,8 +2,8 @@ name: Sync Development Database (Daily)
 
 on:
   schedule:
-    # Run every day at 2:00 AM UTC (adjust to your timezone)
-    - cron: '0 2 * * *'
+    # Run every day at 4:05 AM UTC (after Neon's auto-delete at 3:59 AM)
+    - cron: '5 4 * * *'
   workflow_dispatch:  # Allow manual trigger from GitHub UI
 
 jobs:
@@ -12,15 +12,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Delete old development branch (Neon)
-        id: delete-branch
-        run: |
-          echo "Deleting old development branch..."
-          curl -X DELETE "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches/development" \
-            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -w "\nStatus: %{http_code}\n" || echo "Branch deletion skipped (might not exist yet)"
 
       - name: Create new development branch from main
         id: create-branch
@@ -86,7 +77,6 @@ jobs:
         if: success()
         run: |
           echo "✅ Development database sync completed successfully!"
-          echo "- Old branch deleted"
-          echo "- New branch created from main"
+          echo "- New development branch created from main (old one auto-deleted by Neon)"
           echo "- Vercel env vars updated"
           echo "- Redeploy triggered"
