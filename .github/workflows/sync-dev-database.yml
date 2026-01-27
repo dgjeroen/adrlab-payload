@@ -1,0 +1,92 @@
+name: Sync Development Database (Daily)
+
+on:
+  schedule:
+    # Run every day at 2:00 AM UTC (adjust to your timezone)
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
+
+jobs:
+  sync-database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Delete old development branch (Neon)
+        id: delete-branch
+        run: |
+          echo "Deleting old development branch..."
+          curl -X DELETE "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches/development" \
+            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -w "\nStatus: %{http_code}\n" || echo "Branch deletion skipped (might not exist yet)"
+
+      - name: Create new development branch from main
+        id: create-branch
+        run: |
+          echo "Creating new development branch as copy of main..."
+          RESPONSE=$(curl -s -X POST "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
+            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "branch": {
+                "name": "development",
+                "parent_id": "main"
+              }
+            }')
+          
+          echo "Response: $RESPONSE"
+          
+          # Extract connection string from response
+          CONNECTION_STRING=$(echo "$RESPONSE" | grep -o '"postgresql://[^"]*' | head -1 | tr -d '"')
+          
+          if [ -z "$CONNECTION_STRING" ]; then
+            echo "Error: Could not extract connection string from response"
+            exit 1
+          fi
+          
+          echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+          echo "New development branch created successfully"
+
+      - name: Update Vercel environment variable (DATABASE_URL)
+        run: |
+          echo "Updating Vercel DATABASE_URL..."
+          
+          # Get all environment variables first
+          ENV_RESPONSE=$(curl -s -X GET "https://api.vercel.com/v9/projects/${{ vars.VERCEL_PROJECT_ID }}/env" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_API_TOKEN }}")
+          
+          echo "Current env vars: $ENV_RESPONSE"
+          
+          # Update DATABASE_URL
+          curl -s -X PATCH "https://api.vercel.com/v9/projects/${{ vars.VERCEL_PROJECT_ID }}/env" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '[{
+              "key": "DATABASE_URL",
+              "value": "${{ steps.create-branch.outputs.connection_string }}",
+              "target": ["preview", "production"]
+            }]' \
+            -w "\nStatus: %{http_code}\n"
+
+      - name: Trigger Vercel redeploy
+        run: |
+          echo "Triggering Vercel redeploy..."
+          curl -s -X POST "https://api.vercel.com/v13/deployments" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"projectId\": \"${{ vars.VERCEL_PROJECT_ID }}\",
+              \"source\": \"github\"
+            }" \
+            -w "\nStatus: %{http_code}\n" || echo "Redeploy request sent (may be processed asynchronously)"
+
+      - name: Notify completion
+        if: success()
+        run: |
+          echo "✅ Development database sync completed successfully!"
+          echo "- Old branch deleted"
+          echo "- New branch created from main"
+          echo "- Vercel env vars updated"
+          echo "- Redeploy triggered"
