@@ -10,7 +10,8 @@
     "lint": "next lint",
     "payload": "payload",
     "generate:types": "payload generate:types",
-    "generate:importmap": "payload generate:importmap"
+    "generate:importmap": "payload generate:importmap",
+    "deploy:vercel": "bash ./scripts/deploy-vercel.sh"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "^3.10.0",

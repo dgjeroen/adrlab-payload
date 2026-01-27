@@ -45,7 +45,7 @@ export const Users: CollectionConfig = {
       ],
       saveToJWT: true,
       access: {
-        update: admins,
+        update: ({ req }) => Boolean(req?.user?.role === "admin"),
       },
     },
     {
