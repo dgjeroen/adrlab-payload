@@ -74,37 +74,33 @@ jobs:
           echo "main_branch_id=$MAIN_BRANCH_ID" >> $GITHUB_OUTPUT
           echo "✅ Production branch ID found: $MAIN_BRANCH_ID"
 
-      - name: Delete old development branch (if exists)
-        continue-on-error: true
+- name: Delete old development branch (if exists) and create new one
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
-          echo "Attempting to delete old development branch..."
-          DELETE_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
-            -X DELETE "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches/development" \
-            -H "Authorization: Bearer $NEON_API_KEY")
-
-          DELETE_CODE=$(echo "$DELETE_RESPONSE" | grep -o 'HTTP_CODE:[0-9]*' | cut -d: -f2)
-          echo "Delete status: $DELETE_CODE"
-
-          if [ "$DELETE_CODE" == "204" ] || [ "$DELETE_CODE" == "200" ]; then
-            echo "✓ Branch deletion initiated"
-            echo "Waiting for branch to be fully deleted..."
+          echo "Checking if development branch exists..."
+          
+          # Get development branch info if it exists
+          DEV_BRANCH=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
+            -H "Authorization: Bearer $NEON_API_KEY" | jq -r '.branches[] | select(.name == "development")')
+          
+          if [ ! -z "$DEV_BRANCH" ]; then
+            DEV_BRANCH_ID=$(echo "$DEV_BRANCH" | jq -r '.id')
+            echo "Found existing development branch with ID: $DEV_BRANCH_ID"
+            echo "Deleting by ID..."
             
-            # Poll API to check if branch is really gone (max 30 seconds)
-            for i in {1..6}; do
-              sleep 5
-              CHECK=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
-                -H "Authorization: Bearer $NEON_API_KEY" | jq -r '.branches[] | select(.name == "development") | .name')
-              
-              if [ -z "$CHECK" ]; then
-                echo "✓ Branch fully deleted after $((i * 5)) seconds"
-                break
-              fi
-              echo "Branch still exists, waiting... ($((i * 5))s)"
-            done
+            # Delete by ID instead of name
+            DELETE_STATUS=$(curl -s -w "%{http_code}" -o /dev/null \
+              -X DELETE "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches/$DEV_BRANCH_ID" \
+              -H "Authorization: Bearer $NEON_API_KEY")
+            
+            echo "Delete status: $DELETE_STATUS"
+            
+            # Wait longer and verify deletion
+            echo "Waiting 10 seconds for deletion..."
+            sleep 10
           else
-            echo "Branch didn't exist or delete failed (status: $DELETE_CODE)"
+            echo "No existing development branch found"
           fi
 
       - name: Create new development branch from production
