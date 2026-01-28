@@ -15,19 +15,38 @@ jobs:
 
       - name: Delete old development branch (if exists)
         continue-on-error: true
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
-          echo "Attempting to delete old development branch..."
-          curl -s -X DELETE "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches/development" \
-            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
-            -w "\nStatus: %{http_code}\n"
-          echo "✓ Old branch cleanup attempted (may have already been deleted by Neon auto-delete)"
+          echo "Checking if development branch exists..."
+
+          DEV_BRANCH=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
+            -H "Authorization: Bearer $NEON_API_KEY" | jq -r '.branches[] | select(.name == "development")')
+
+          if [ ! -z "$DEV_BRANCH" ]; then
+            DEV_BRANCH_ID=$(echo "$DEV_BRANCH" | jq -r '.id')
+            echo "Found existing development branch with ID: $DEV_BRANCH_ID"
+            echo "Deleting by ID..."
+            
+            DELETE_STATUS=$(curl -s -w "%{http_code}" -o /dev/null \
+              -X DELETE "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches/$DEV_BRANCH_ID" \
+              -H "Authorization: Bearer $NEON_API_KEY")
+            
+            echo "Delete status: $DELETE_STATUS"
+            echo "Waiting 10 seconds for deletion..."
+            sleep 10
+          else
+            echo "No existing development branch found (may have been auto-deleted by Neon)"
+          fi
 
       - name: Get production branch ID
         id: get-main-branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "Fetching production branch ID from Neon..."
-          BRANCHES=$(curl -s -X GET "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
-            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}")
+          BRANCHES=$(curl -s -X GET "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
+            -H "Authorization: Bearer $NEON_API_KEY")
 
           echo "Branches response: $BRANCHES"
 
@@ -43,32 +62,41 @@ jobs:
 
       - name: Create new development branch from production
         id: create-branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "Creating new development branch as copy of production..."
-          RESPONSE=$(curl -s -X POST "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
-            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
+          RESPONSE=$(curl -s -X POST "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
+            -H "Authorization: Bearer $NEON_API_KEY" \
             -H "Content-Type: application/json" \
             -d '{
               "branch": {
                 "name": "development",
                 "parent_id": "${{ steps.get-main-branch.outputs.main_branch_id }}"
-              }
+              },
+              "endpoints": [
+                {
+                  "type": "read_write"
+                }
+              ]
             }')
 
           echo "Neon API response: $RESPONSE"
 
-          # Extract connection string using jq for proper JSON parsing
-          CONNECTION_STRING=$(echo "$RESPONSE" | jq -r '.branch.connection_strings.postgres[0]' 2>/dev/null)
+          BRANCH_ID=$(echo "$RESPONSE" | jq -r '.branch.id')
+          echo "Branch ID: $BRANCH_ID"
+
+          CONNECTION_STRING=$(echo "$RESPONSE" | jq -r '.connection_uris[0].connection_uri' 2>/dev/null)
 
           if [ -z "$CONNECTION_STRING" ] || [ "$CONNECTION_STRING" == "null" ]; then
-            echo "Error: Could not extract connection string from response"
+            echo "❌ Error: Could not extract connection string from response"
             echo "Full response was: $RESPONSE"
             exit 1
           fi
 
           echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
-          echo "✓ New development branch created successfully"
-          echo "Connection string extracted: ${CONNECTION_STRING:0:30}..."
+          echo "✅ New development branch created with endpoint!"
+          echo "Connection string extracted: ${CONNECTION_STRING:0:50}..."
 
       - name: Update Vercel environment variable (DATABASE_URL)
         run: |
