@@ -91,14 +91,3 @@ export const Image: Block = {
     },
   },
 };
-      required: true,
-      admin: {
-        description: t("blocks.image.fields.alt.description"),
-      },
-    },
-  ],
-  labels: {
-    singular: t("blocks.image.singular"),
-    plural: t("blocks.image.plural"),
-  },
-};
