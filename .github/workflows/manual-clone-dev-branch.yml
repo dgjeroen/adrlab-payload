@@ -9,13 +9,15 @@ jobs:
     steps:
       - name: Get production branch ID
         id: get-main-branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "🔍 Starting branch ID lookup..."
           echo "Project ID: ${{ vars.NEON_PROJECT_ID }}"
           echo "API Key length: ${#NEON_API_KEY}"
 
           # Test if API key is set
-          if [ -z "${{ secrets.NEON_API_KEY }}" ]; then
+          if [ -z "$NEON_API_KEY" ]; then
             echo "❌ ERROR: NEON_API_KEY secret is empty or not set!"
             exit 1
           fi
@@ -25,7 +27,7 @@ jobs:
           # Make API call with verbose error output
           HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/response.json \
             -X GET "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
-            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}")
+            -H "Authorization: Bearer $NEON_API_KEY")
 
           CURL_EXIT=$?
 
@@ -63,17 +65,21 @@ jobs:
 
       - name: Delete old development branch (if exists)
         continue-on-error: true
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "Attempting to delete old development branch..."
           curl -s -X DELETE "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches/development" \
-            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
+            -H "Authorization: Bearer $NEON_API_KEY" \
             -w "\nStatus: %{http_code}\n"
           echo "✓ Old branch deletion attempted"
 
-      - name: Create new development branch from production
-        id: create-branch
+      - env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "Creating new development branch as copy of production..."
+          RESPONSE=$(curl -s -X POST "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
+            -H "Authorization: Bearer $NEON_API_KEYtion..."
           RESPONSE=$(curl -s -X POST "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
             -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
             -H "Content-Type: application/json" \
