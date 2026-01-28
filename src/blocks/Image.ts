@@ -1,36 +1,40 @@
-import type { Block } from 'payload'
+import type { Block } from "payload";
+import { t } from "@/i18n/t";
 
 export const Image: Block = {
-  slug: 'image',
-  interfaceName: 'ImageBlock',
+  slug: "image",
+  interfaceName: "ImageBlock",
   fields: [
     {
-      name: 'image',
-      type: 'upload',
-      relationTo: 'media',
+      name: "image",
+      type: "upload",
+      relationTo: "media",
       required: true,
-      label: 'Afbeelding',
-    },
-    {
-      name: 'caption',
-      type: 'text',
-      label: 'Bijschrift',
+      label: t("blocks.image.fields.image.label"),
       admin: {
-        description: 'Optioneel bijschrift onder de afbeelding',
+        description: t("blocks.image.fields.image.description"),
       },
     },
     {
-      name: 'alt',
-      type: 'text',
-      label: 'Alt tekst',
+      name: "caption",
+      type: "text",
+      label: t("blocks.image.fields.caption.label"),
+      admin: {
+        description: t("blocks.image.fields.caption.description"),
+      },
+    },
+    {
+      name: "alt",
+      type: "text",
+      label: t("blocks.image.fields.alt.label"),
       required: true,
       admin: {
-        description: 'Beschrijving van de afbeelding voor toegankelijkheid',
+        description: t("blocks.image.fields.alt.description"),
       },
     },
   ],
   labels: {
-    singular: 'Afbeelding',
-    plural: 'Afbeeldingen',
+    singular: t("blocks.image.singular"),
+    plural: t("blocks.image.plural"),
   },
-}
+};

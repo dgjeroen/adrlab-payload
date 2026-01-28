@@ -1,7 +1,7 @@
 import type { CollectionConfig } from "payload";
 import { admins, adminsAndEditors, contentCreators } from "@/access";
 import { t } from "@/i18n/t";
-import { Image } from "@/blocks/Image";
+import { Hero, Text, Image } from "@/blocks";
 
 export const Topverhalen: CollectionConfig = {
   slug: "topverhalen",
@@ -96,59 +96,9 @@ export const Topverhalen: CollectionConfig = {
       type: "blocks",
       label: t("fields.blocks"),
       blocks: [
-        // Hero block
-        {
-          slug: "hero",
-          labels: { singular: "Hero", plural: "Heroes" },
-          fields: [
-            {
-              name: "title",
-              type: "text",
-              label: t("fields.title"),
-              required: true,
-            },
-            {
-              name: "subtitle",
-              type: "text",
-              label: "Subtitle",
-            },
-            {
-              name: "media",
-              type: "relationship",
-              relationTo: "media",
-              label: t("fields.image"),
-              required: true,
-            },
-            {
-              name: "overlayOpacity",
-              type: "number",
-              label: "Overlay Opacity (%)",
-              defaultValue: 50,
-              min: 0,
-              max: 100,
-            },
-          ],
-        },
-        // Text block
-        {
-          slug: "text",
-          labels: { singular: "Text", plural: "Text Blocks" },
-          fields: [
-            {
-              name: "content",
-              type: "richText",
-              label: t("fields.content"),
-              required: true,
-            },
-            {
-              name: "isIntro",
-              type: "checkbox",
-              label: "Is intro (larger text)",
-              defaultValue: false,
-            },
-          ],
-        },
-        // Image block (imported from blocks folder)
+        // Alle blocks zijn nu geïmporteerd van /src/blocks/
+        Hero,
+        Text,
         Image,
       ],
     },
