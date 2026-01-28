@@ -327,11 +327,11 @@ Document locking werkt ook via de Local API en REST API:
 ```typescript
 // Enfore lock bij update/delete
 await payload.update({
-  collection: 'topverhalen',
-  id: '123',
-  data: { title: 'Nieuwe titel' },
+  collection: "topverhalen",
+  id: "123",
+  data: { title: "Nieuwe titel" },
   overrideLock: false, // Respecteer document lock (standaard: true)
-})
+});
 ```
 
 **Standaard gedrag**: `overrideLock` is `true`, wat betekent dat API operaties locks negeren. Zet op `false` voor strikte lock enforcement.
@@ -405,13 +405,13 @@ await payload.update({
 ```typescript
 // Row-level security met query constraint
 export const adminsOrSelf: Access = ({ req: { user } }) => {
-  if (!user) return false
-  if (user.role === 'admin') return true
+  if (!user) return false;
+  if (user.role === "admin") return true;
 
   return {
     id: { equals: user.id },
-  }
-}
+  };
+};
 ```
 
 ### Hook Voorbeeld
@@ -508,6 +508,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 ### GitHub Actions Workflows
 
 #### Daily Sync (`sync-dev-database.yml`)
+
 - Runs nightly at 4:05 AM UTC
 - Deletes old development branch
 - Creates fresh clone from production branch
@@ -515,6 +516,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 - Triggers redeploy
 
 #### Manual Clone (`manual-clone-dev-branch.yml`)
+
 - Manual trigger from GitHub Actions UI
 - Same process as daily sync
 - Use for on-demand development database refresh

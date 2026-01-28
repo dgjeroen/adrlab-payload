@@ -1,6 +1,7 @@
 import type { CollectionConfig } from "payload";
 import { admins, adminsAndEditors, contentCreators } from "@/access";
 import { t } from "@/i18n/t";
+import { Image } from "@/blocks/Image";
 
 export const Topverhalen: CollectionConfig = {
   slug: "topverhalen",
@@ -147,36 +148,8 @@ export const Topverhalen: CollectionConfig = {
             },
           ],
         },
-        // Image block
-        {
-          slug: "image",
-          labels: { singular: "Image", plural: "Images" },
-          fields: [
-            {
-              name: "media",
-              type: "relationship",
-              relationTo: "media",
-              label: t("fields.image"),
-              required: true,
-            },
-            {
-              name: "caption",
-              type: "text",
-              label: "Caption",
-            },
-            {
-              name: "width",
-              type: "select",
-              label: "Width",
-              defaultValue: "full",
-              options: [
-                { label: "Full Width", value: "full" },
-                { label: "2/3 Width", value: "2/3" },
-                { label: "1/2 Width", value: "1/2" },
-              ],
-            },
-          ],
-        },
+        // Image block (imported from blocks folder)
+        Image,
       ],
     },
     {
