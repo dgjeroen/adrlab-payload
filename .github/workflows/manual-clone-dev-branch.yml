@@ -74,14 +74,14 @@ jobs:
             -w "\nStatus: %{http_code}\n"
           echo "✓ Old branch deletion attempted"
 
-      - env:
+      - name: Create new development branch from production
+        id: create-branch
+        env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "Creating new development branch as copy of production..."
           RESPONSE=$(curl -s -X POST "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
-            -H "Authorization: Bearer $NEON_API_KEYtion..."
-          RESPONSE=$(curl -s -X POST "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
-            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
+            -H "Authorization: Bearer $NEON_API_KEY" \
             -H "Content-Type: application/json" \
             -d '{
               "branch": {
