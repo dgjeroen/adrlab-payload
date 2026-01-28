@@ -497,6 +497,55 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
 ---
 
+## � Deployment & Database
+
+### Neon PostgreSQL Database
+
+- **Production Branch**: `production` (main database)
+- **Development Branch**: `development` (auto-synced nightly at 4:05 AM UTC)
+- **Project ID**: `square-pine-01384233`
+
+### GitHub Actions Workflows
+
+#### Daily Sync (`sync-dev-database.yml`)
+- Runs nightly at 4:05 AM UTC
+- Deletes old development branch
+- Creates fresh clone from production branch
+- Updates Vercel environment variables
+- Triggers redeploy
+
+#### Manual Clone (`manual-clone-dev-branch.yml`)
+- Manual trigger from GitHub Actions UI
+- Same process as daily sync
+- Use for on-demand development database refresh
+
+### Development Workflow
+
+1. **Feature Development**:
+   - Branch from `development`
+   - Use local `.env.local` with development database
+   - Test new collections/blocks locally
+   - Commit small, logical changes
+
+2. **Schema Changes**:
+   - Test locally with development database
+   - Payload auto-applies schema changes locally
+   - Push to `main` → Vercel deploy → Payload runs migrations on production
+   - Next night: development database gets updated schema automatically
+
+3. **Database Branches**:
+   - Development database = disposable (reset nightly)
+   - Production database = source of truth
+   - Schema changes flow: Code → Production → Development (via nightly sync)
+
+### Vercel Deployment
+
+- **Production**: Linked to `main` branch
+- **Preview**: Auto-deploy from feature branches
+- Environment variables updated via GitHub Actions
+
+---
+
 ## 🔄 Voor Volgende Sessie
 
 ### Potentiële Verbeteringen
@@ -517,4 +566,5 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
 ---
 
+**Laatste Update**: 28 januari 2026 | Neon workflows werkend ✅  
 **Einde Handover** | Alle code volgt officiële Payload CMS 3 best practices ✅
