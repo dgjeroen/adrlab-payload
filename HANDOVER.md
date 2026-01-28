@@ -4,7 +4,34 @@
 **Project**: ADR Lab - Topverhalen CMS  
 **Status**: ✅ Volledig werkend volgens Payload best practices
 
-## 🎯 Project Overzicht
+## � Development Learning Guide
+
+**BELANGRIJK**: Bij het ontwikkelen van nieuwe features (blocks, collections, fields) wordt de developer altijd meegenomen in het proces met:
+
+1. **Uitleg van de concepten** - Wat is een block/collection/field en hoe werkt het?
+2. **Code walkthrough** - Stap-voor-stap door de implementatie
+3. **Best practices** - Waarom maken we bepaalde keuzes?
+4. **Alternatieven** - Wat zijn andere manieren om iets te implementeren?
+5. **Testing strategy** - Hoe testen we de nieuwe functionaliteit?
+
+### Learning Resources
+
+- **AGENTS.md**: Uitgebreide Payload best practices in project root
+- **Payload Docs**: https://payloadcms.com/docs/configuration/overview
+- **Block Patterns**: Vergelijk inline vs external block definitions in dit project
+- **Access Control**: Zie `/src/access/` voor reusable patterns
+
+### Development Workflow for Learning
+
+1. **Bespreek de feature**: Wat gaan we bouwen en waarom?
+2. **Plan de structuur**: Welke fields/blocks/collections zijn nodig?
+3. **Implementeer samen**: Code wordt uitgelegd tijdens het schrijven
+4. **Test lokaal**: Gebruik development database om schema changes te testen
+5. **Review**: Bespreek wat werkt en wat beter kan
+
+---
+
+## �🎯 Project Overzicht
 
 Dit is een **Payload CMS 3.0** project gebouwd met **Next.js 15** (App Router), **TypeScript**, **PostgreSQL** (Neon), en **Tailwind CSS**. Het systeem beheert "topverhalen" met een live preview functionaliteit.
 
