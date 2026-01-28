@@ -116,21 +116,29 @@ jobs:
               "branch": {
                 "name": "development",
                 "parent_id": "${{ steps.get-main-branch.outputs.main_branch_id }}"
-              }
+              },
+              "endpoints": [
+                {
+                  "type": "read_write"
+                }
+              ]
             }')
 
           echo "Neon API response: $RESPONSE"
 
-          CONNECTION_STRING=$(echo "$RESPONSE" | jq -r '.branch.connection_strings.postgres[0]' 2>/dev/null)
+          BRANCH_ID=$(echo "$RESPONSE" | jq -r '.branch.id')
+          echo "Branch ID: $BRANCH_ID"
+
+          CONNECTION_STRING=$(echo "$RESPONSE" | jq -r '.connection_uris[0].connection_uri' 2>/dev/null)
 
           if [ -z "$CONNECTION_STRING" ] || [ "$CONNECTION_STRING" == "null" ]; then
-            echo "Error: Could not extract connection string"
+            echo "❌ Error: Could not extract connection string"
             echo "Full response: $RESPONSE"
             exit 1
           fi
 
           echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
-          echo "✓ Development branch created!"
+          echo "✅ Development branch created with endpoint!"
           echo "Connection string: ${CONNECTION_STRING:0:50}..."
 
       - name: Show connection string
