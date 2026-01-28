@@ -13,6 +13,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Delete old development branch (if exists)
+        continue-on-error: true
+        run: |
+          echo "Attempting to delete old development branch..."
+          curl -s -X DELETE "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches/development" \
+            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
+            -w "\nStatus: %{http_code}\n"
+          echo "✓ Old branch cleanup attempted (may have already been deleted by Neon auto-delete)"
+
+      - name: Get main branch ID
+        id: get-main-branch
+        run: |
+          echo "Fetching main branch ID from Neon..."
+          BRANCHES=$(curl -s -X GET "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
+            -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}")
+
+          echo "Branches response: $BRANCHES"
+
+          MAIN_BRANCH_ID=$(echo "$BRANCHES" | jq -r '.branches[] | select(.name == "main") | .id' 2>/dev/null | head -1)
+
+          if [ -z "$MAIN_BRANCH_ID" ] || [ "$MAIN_BRANCH_ID" == "null" ]; then
+            echo "Error: Could not find main branch ID"
+            exit 1
+          fi
+
+          echo "main_branch_id=$MAIN_BRANCH_ID" >> $GITHUB_OUTPUT
+          echo "✓ Main branch ID found: $MAIN_BRANCH_ID"
+
       - name: Create new development branch from main
         id: create-branch
         run: |
@@ -23,22 +51,24 @@ jobs:
             -d '{
               "branch": {
                 "name": "development",
-                "parent_id": "main"
+                "parent_id": "${{ steps.get-main-branch.outputs.main_branch_id }}"
               }
             }')
 
-          echo "Response: $RESPONSE"
+          echo "Neon API response: $RESPONSE"
 
-          # Extract connection string from response
-          CONNECTION_STRING=$(echo "$RESPONSE" | grep -o '"postgresql://[^"]*' | head -1 | tr -d '"')
+          # Extract connection string using jq for proper JSON parsing
+          CONNECTION_STRING=$(echo "$RESPONSE" | jq -r '.branch.connection_strings.postgres[0]' 2>/dev/null)
 
-          if [ -z "$CONNECTION_STRING" ]; then
+          if [ -z "$CONNECTION_STRING" ] || [ "$CONNECTION_STRING" == "null" ]; then
             echo "Error: Could not extract connection string from response"
+            echo "Full response was: $RESPONSE"
             exit 1
           fi
 
           echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
-          echo "New development branch created successfully"
+          echo "✓ New development branch created successfully"
+          echo "Connection string extracted: ${CONNECTION_STRING:0:30}..."
 
       - name: Update Vercel environment variable (DATABASE_URL)
         run: |
