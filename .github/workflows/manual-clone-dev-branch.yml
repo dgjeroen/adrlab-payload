@@ -84,6 +84,8 @@ jobs:
             -H "Authorization: Bearer $NEON_API_KEY" \
             -w "\nStatus: %{http_code}\n"
           echo "✓ Old branch deletion attempted"
+          echo "Waiting 5 seconds for deletion to complete..."
+          sleep 5
 
       - name: Create new development branch from production
         id: create-branch
