@@ -29,19 +29,37 @@ export default {
       fields: {
         title: {
           label: "Titel",
-          description: "Hoofdtitel die over de afbeelding wordt getoond",
+          description: "Hoofdtitel die over de media wordt getoond",
         },
         subtitle: {
           label: "Ondertitel",
           description: "Optionele ondertitel onder de hoofdtitel",
         },
-        media: {
+        mediaType: {
+          label: "Media Type",
+          description: "Kies tussen een afbeelding of video",
+          options: {
+            image: "Afbeelding",
+            video: "Video",
+          },
+        },
+        mediaImage: {
           label: "Achtergrondafbeelding",
-          description: "Afbeelding die als achtergrond van de hero wordt gebruikt",
+          description: "Upload een afbeelding als hero achtergrond",
+        },
+        focusPoint: {
+          label: "Focus Punt",
+          description:
+            "Klik op het belangrijkste punt in de afbeelding (bijv. gezicht). Dit blijft altijd zichtbaar bij cropping.",
+        },
+        videoUrl: {
+          label: "Video URL (HLS)",
+          description: "HLS stream URL van de video (bijv. https://.../.m3u8)",
         },
         overlayOpacity: {
           label: "Overlay Transparantie (%)",
-          description: "Donkere overlay over de afbeelding (0 = geen, 100 = volledig zwart)",
+          description:
+            "Donkere overlay over de media (0 = geen, 100 = volledig zwart)",
         },
       },
     },
@@ -55,7 +73,8 @@ export default {
         },
         isIntro: {
           label: "Is intro paragraaf",
-          description: "Toon deze tekst groter en dikker (voor lead paragraphs)",
+          description:
+            "Toon deze tekst groter en dikker (voor lead paragraphs)",
         },
       },
     },
@@ -67,13 +86,19 @@ export default {
           label: "Afbeelding",
           description: "De afbeelding die getoond wordt",
         },
+        focusPoint: {
+          label: "Focus Punt",
+          description:
+            "Klik op het belangrijkste punt in de afbeelding. Dit blijft altijd zichtbaar bij cropping.",
+        },
         caption: {
           label: "Bijschrift",
           description: "Optioneel bijschrift onder de afbeelding",
         },
         alt: {
           label: "Alt tekst",
-          description: "Beschrijving van de afbeelding voor toegankelijkheid en SEO",
+          description:
+            "Beschrijving van de afbeelding voor toegankelijkheid en SEO",
         },
       },
     },

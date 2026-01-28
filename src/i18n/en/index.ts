@@ -29,19 +29,37 @@ export default {
       fields: {
         title: {
           label: "Title",
-          description: "Main title displayed over the image",
+          description: "Main title displayed over the media",
         },
         subtitle: {
           label: "Subtitle",
           description: "Optional subtitle below the main title",
         },
-        media: {
+        mediaType: {
+          label: "Media Type",
+          description: "Choose between an image or video",
+          options: {
+            image: "Image",
+            video: "Video",
+          },
+        },
+        mediaImage: {
           label: "Background Image",
-          description: "Image used as hero background",
+          description: "Upload an image as hero background",
+        },
+        focusPoint: {
+          label: "Focus Point",
+          description:
+            "Click on the most important part of the image (e.g. face). This area will always remain visible when cropped.",
+        },
+        videoUrl: {
+          label: "Video URL (HLS)",
+          description: "HLS stream URL of the video (e.g. https://.../.m3u8)",
         },
         overlayOpacity: {
           label: "Overlay Opacity (%)",
-          description: "Dark overlay over the image (0 = none, 100 = fully black)",
+          description:
+            "Dark overlay over the media (0 = none, 100 = fully black)",
         },
       },
     },
@@ -55,7 +73,8 @@ export default {
         },
         isIntro: {
           label: "Is intro paragraph",
-          description: "Display this text larger and bolder (for lead paragraphs)",
+          description:
+            "Display this text larger and bolder (for lead paragraphs)",
         },
       },
     },
@@ -66,6 +85,11 @@ export default {
         image: {
           label: "Image",
           description: "The image to display",
+        },
+        focusPoint: {
+          label: "Focus Point",
+          description:
+            "Click on the most important part of the image. This area will always remain visible when cropped.",
         },
         caption: {
           label: "Caption",

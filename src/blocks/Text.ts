@@ -1,5 +1,6 @@
 import type { Block } from "payload";
-import { t } from "@/i18n/t";
+import en from "@/i18n/en";
+import nl from "@/i18n/nl";
 
 /**
  * Text Block
@@ -23,27 +24,41 @@ export const Text: Block = {
       name: "content",
       type: "richText",
       required: true,
-      label: t("blocks.text.fields.content.label"),
-      admin: {
-        description: t("blocks.text.fields.content.description"),
+      label: {
+        en: en.blocks.text.fields.content.label,
+        nl: nl.blocks.text.fields.content.label,
       },
-      // Je kunt hier later custom Lexical features toevoegen:
-      // editor: lexicalEditor({
-      //   features: ({ defaultFeatures }) => [...defaultFeatures, customFeature()]
-      // })
+      admin: {
+        description: {
+          en: en.blocks.text.fields.content.description,
+          nl: nl.blocks.text.fields.content.description,
+        },
+      },
     },
     {
       name: "isIntro",
       type: "checkbox",
       defaultValue: false,
-      label: t("blocks.text.fields.isIntro.label"),
+      label: {
+        en: en.blocks.text.fields.isIntro.label,
+        nl: nl.blocks.text.fields.isIntro.label,
+      },
       admin: {
-        description: t("blocks.text.fields.isIntro.description"),
+        description: {
+          en: en.blocks.text.fields.isIntro.description,
+          nl: nl.blocks.text.fields.isIntro.description,
+        },
       },
     },
   ],
   labels: {
-    singular: t("blocks.text.singular"),
-    plural: t("blocks.text.plural"),
+    singular: {
+      en: en.blocks.text.singular,
+      nl: nl.blocks.text.singular,
+    },
+    plural: {
+      en: en.blocks.text.plural,
+      nl: nl.blocks.text.plural,
+    },
   },
 };
