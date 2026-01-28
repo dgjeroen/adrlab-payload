@@ -10,21 +10,56 @@ jobs:
       - name: Get production branch ID
         id: get-main-branch
         run: |
+          echo "🔍 Starting branch ID lookup..."
+          echo "Project ID: ${{ vars.NEON_PROJECT_ID }}"
+          echo "API Key length: ${#NEON_API_KEY}"
+
+          # Test if API key is set
+          if [ -z "${{ secrets.NEON_API_KEY }}" ]; then
+            echo "❌ ERROR: NEON_API_KEY secret is empty or not set!"
+            exit 1
+          fi
+
           echo "Fetching production branch ID from Neon..."
-          BRANCHES=$(curl -s -X GET "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
+
+          # Make API call with verbose error output
+          HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/response.json \
+            -X GET "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
             -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}")
 
-          echo "Branches response: $BRANCHES"
+          CURL_EXIT=$?
+
+          echo "Curl exit code: $CURL_EXIT"
+          echo "HTTP status code: $HTTP_CODE"
+
+          if [ $CURL_EXIT -ne 0 ]; then
+            echo "❌ Curl command failed with exit code $CURL_EXIT"
+            echo "This usually means network/DNS issue or invalid API endpoint"
+            exit 1
+          fi
+
+          BRANCHES=$(cat /tmp/response.json)
+          echo "API Response (first 500 chars):"
+          echo "$BRANCHES" | head -c 500
+          echo ""
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ API returned HTTP $HTTP_CODE"
+            echo "Full response: $BRANCHES"
+            exit 1
+          fi
 
           MAIN_BRANCH_ID=$(echo "$BRANCHES" | jq -r '.branches[] | select(.name == "production") | .id' 2>/dev/null | head -1)
 
           if [ -z "$MAIN_BRANCH_ID" ] || [ "$MAIN_BRANCH_ID" == "null" ]; then
-            echo "Error: Could not find production branch ID"
+            echo "❌ Error: Could not find production branch"
+            echo "Available branches:"
+            echo "$BRANCHES" | jq -r '.branches[].name' 2>/dev/null || echo "Failed to parse branches"
             exit 1
           fi
 
           echo "main_branch_id=$MAIN_BRANCH_ID" >> $GITHUB_OUTPUT
-          echo "✓ Production branch ID found: $MAIN_BRANCH_ID"
+          echo "✅ Production branch ID found: $MAIN_BRANCH_ID"
 
       - name: Delete old development branch (if exists)
         continue-on-error: true
