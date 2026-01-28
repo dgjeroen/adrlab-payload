@@ -30,5 +30,11 @@ export default {
     slug: "Slug",
     content: "Content",
     blocks: "Blocks",
+    intro: "Intro",
+    description: "Description",
+    name: "Name",
+    image: "Image",
+    featuredImage: "Featured Image",
+    status: "Status",
   },
 };

@@ -3,8 +3,8 @@ name: Sync Development Database (Daily)
 on:
   schedule:
     # Run every day at 4:05 AM UTC (after Neon's auto-delete at 3:59 AM)
-    - cron: '5 4 * * *'
-  workflow_dispatch:  # Allow manual trigger from GitHub UI
+    - cron: "5 4 * * *"
+  workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:
   sync-database:
@@ -26,30 +26,30 @@ jobs:
                 "parent_id": "main"
               }
             }')
-          
+
           echo "Response: $RESPONSE"
-          
+
           # Extract connection string from response
           CONNECTION_STRING=$(echo "$RESPONSE" | grep -o '"postgresql://[^"]*' | head -1 | tr -d '"')
-          
+
           if [ -z "$CONNECTION_STRING" ]; then
             echo "Error: Could not extract connection string from response"
             exit 1
           fi
-          
+
           echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
           echo "New development branch created successfully"
 
       - name: Update Vercel environment variable (DATABASE_URL)
         run: |
           echo "Updating Vercel DATABASE_URL..."
-          
+
           # Get all environment variables first
           ENV_RESPONSE=$(curl -s -X GET "https://api.vercel.com/v9/projects/${{ vars.VERCEL_PROJECT_ID }}/env" \
             -H "Authorization: Bearer ${{ secrets.VERCEL_API_TOKEN }}")
-          
+
           echo "Current env vars: $ENV_RESPONSE"
-          
+
           # Update DATABASE_URL
           curl -s -X PATCH "https://api.vercel.com/v9/projects/${{ vars.VERCEL_PROJECT_ID }}/env" \
             -H "Authorization: Bearer ${{ secrets.VERCEL_API_TOKEN }}" \

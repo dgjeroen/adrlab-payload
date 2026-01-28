@@ -30,5 +30,11 @@ export default {
     slug: "Slug",
     content: "Inhoud",
     blocks: "Blokken",
+    intro: "Introductie",
+    description: "Beschrijving",
+    name: "Naam",
+    image: "Afbeelding",
+    featuredImage: "Uitgelichte Afbeelding",
+    status: "Status",
   },
 };
