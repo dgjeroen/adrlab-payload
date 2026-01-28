@@ -24,27 +24,39 @@ jobs:
 
           echo "Fetching production branch ID from Neon..."
 
-          # Make API call with verbose error output (set +e to prevent bash from exiting on curl error)
+          # Make API call - redirect stderr to file for debugging
           set +e
-          HTTP_CODE=$(curl -v -s -w "%{http_code}" -o /tmp/response.json \
+          curl -w "\nHTTP_CODE:%{http_code}" -o /tmp/response.json \
             -X GET "https://api.neon.tech/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
             -H "Authorization: Bearer $NEON_API_KEY" \
-            -H "Accept: application/json" 2>&1 | tee /tmp/curl_debug.log | tail -1)
+            -H "Accept: application/json" 2>/tmp/curl_stderr.log
 
           CURL_EXIT=$?
           set -e
 
           echo "Curl exit code: $CURL_EXIT"
-          echo "HTTP status code: $HTTP_CODE"
 
           if [ $CURL_EXIT -ne 0 ]; then
             echo "❌ Curl command failed with exit code $CURL_EXIT"
-            echo "Curl debug output:"
-            cat /tmp/curl_debug.log
+            echo "Curl error output:"
+            cat /tmp/curl_stderr.log 2>/dev/null || echo "No error log"
             exit 1
           fi
 
-          BRANCHES=$(cat /tmp/response.json)
+          # Extract HTTP code from response
+          HTTP_CODE=$(tail -1 /tmp/response.json | grep -o 'HTTP_CODE:[0-9]*' | cut -d: -f2)
+          echo "HTTP status code: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ API returned HTTP $HTTP_CODE"
+            echo "Response body:"
+            head -n -1 /tmp/response.json
+            exit 1
+          fi
+
+          # Remove the HTTP_CODE line from response
+          head -n -1 /tmp/response.json > /tmp/response_clean.json
+          BRANCHES=$(cat /tmp/response_clean.json)
           echo "API Response (first 500 chars):"
           echo "$BRANCHES" | head -c 500
           echo ""
