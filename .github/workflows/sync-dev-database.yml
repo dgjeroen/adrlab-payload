@@ -22,29 +22,29 @@ jobs:
             -w "\nStatus: %{http_code}\n"
           echo "✓ Old branch cleanup attempted (may have already been deleted by Neon auto-delete)"
 
-      - name: Get main branch ID
+      - name: Get production branch ID
         id: get-main-branch
         run: |
-          echo "Fetching main branch ID from Neon..."
+          echo "Fetching production branch ID from Neon..."
           BRANCHES=$(curl -s -X GET "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
             -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}")
 
           echo "Branches response: $BRANCHES"
 
-          MAIN_BRANCH_ID=$(echo "$BRANCHES" | jq -r '.branches[] | select(.name == "main") | .id' 2>/dev/null | head -1)
+          MAIN_BRANCH_ID=$(echo "$BRANCHES" | jq -r '.branches[] | select(.name == "production") | .id' 2>/dev/null | head -1)
 
           if [ -z "$MAIN_BRANCH_ID" ] || [ "$MAIN_BRANCH_ID" == "null" ]; then
-            echo "Error: Could not find main branch ID"
+            echo "Error: Could not find production branch ID"
             exit 1
           fi
 
           echo "main_branch_id=$MAIN_BRANCH_ID" >> $GITHUB_OUTPUT
-          echo "✓ Main branch ID found: $MAIN_BRANCH_ID"
+          echo "✓ Production branch ID found: $MAIN_BRANCH_ID"
 
-      - name: Create new development branch from main
+      - name: Create new development branch from production
         id: create-branch
         run: |
-          echo "Creating new development branch as copy of main..."
+          echo "Creating new development branch as copy of production..."
           RESPONSE=$(curl -s -X POST "https://api.neon.tech/v1/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
             -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
             -H "Content-Type: application/json" \
