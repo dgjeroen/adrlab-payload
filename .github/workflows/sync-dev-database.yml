@@ -2,7 +2,7 @@ name: Sync Development Database (Daily)
 
 on:
   schedule:
-    # Run every day at 4:05 AM UTC (after Neon's auto-delete at 3:59 AM)
+    # Run every day at 4:05 AM UTC
     - cron: "5 4 * * *"
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
@@ -13,30 +13,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Delete old development branch (if exists)
-        continue-on-error: true
+      - name: Check if development branch exists
+        id: check-branch
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
           echo "Checking if development branch exists..."
 
-          DEV_BRANCH=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
-            -H "Authorization: Bearer $NEON_API_KEY" | jq -r '.branches[] | select(.name == "development")')
+          BRANCHES=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches" \
+            -H "Authorization: Bearer $NEON_API_KEY")
 
-          if [ ! -z "$DEV_BRANCH" ]; then
-            DEV_BRANCH_ID=$(echo "$DEV_BRANCH" | jq -r '.id')
-            echo "Found existing development branch with ID: $DEV_BRANCH_ID"
-            echo "Deleting by ID..."
-            
-            DELETE_STATUS=$(curl -s -w "%{http_code}" -o /dev/null \
-              -X DELETE "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches/$DEV_BRANCH_ID" \
-              -H "Authorization: Bearer $NEON_API_KEY")
-            
-            echo "Delete status: $DELETE_STATUS"
-            echo "Waiting 10 seconds for deletion..."
-            sleep 10
+          DEV_BRANCH_ID=$(echo "$BRANCHES" | jq -r '.branches[] | select(.name == "development") | .id')
+
+          if [ ! -z "$DEV_BRANCH_ID" ]; then
+            echo "branch_exists=true" >> $GITHUB_OUTPUT
+            echo "branch_id=$DEV_BRANCH_ID" >> $GITHUB_OUTPUT
+            echo "✓ Development branch exists: $DEV_BRANCH_ID"
           else
-            echo "No existing development branch found (may have been auto-deleted by Neon)"
+            echo "branch_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠ No development branch found, will create new one"
           fi
 
       - name: Get production branch ID
@@ -60,7 +55,36 @@ jobs:
           echo "main_branch_id=$MAIN_BRANCH_ID" >> $GITHUB_OUTPUT
           echo "✓ Production branch ID found: $MAIN_BRANCH_ID"
 
+      - name: Restore development branch from production
+        if: steps.check-branch.outputs.branch_exists == 'true'
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          echo "🔄 Restoring development branch from production..."
+          echo "This resets the development branch to match production data"
+
+          # Use Neon's restore endpoint to reset development branch to production state
+          RESPONSE=$(curl -s -X POST "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches/${{ steps.check-branch.outputs.branch_id }}/restore" \
+            -H "Authorization: Bearer $NEON_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"source_branch_id\": \"${{ steps.get-main-branch.outputs.main_branch_id }}\"
+            }")
+
+          echo "Restore response: $RESPONSE"
+
+          # Check if restore was successful
+          if echo "$RESPONSE" | jq -e '.branch' > /dev/null 2>&1; then
+            echo "✅ Development branch restored from production!"
+            echo "💡 Connection string remains the same - no .env update needed"
+          else
+            echo "⚠️ Restore may have failed, check response above"
+            echo "Falling back to recreation..."
+            exit 1
+          fi
+
       - name: Create new development branch from production
+        if: steps.check-branch.outputs.branch_exists == 'false'
         id: create-branch
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
@@ -97,44 +121,20 @@ jobs:
           echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
           echo "✅ New development branch created with endpoint!"
           echo "Connection string extracted: ${CONNECTION_STRING:0:50}..."
+          echo "⚠️ NOTE: You need to update DATABASE_URL in your local .env file with this connection string"
 
-      - name: Update Vercel environment variable (DATABASE_URL)
-        run: |
-          echo "Updating Vercel DATABASE_URL..."
-
-          # Get all environment variables first
-          ENV_RESPONSE=$(curl -s -X GET "https://api.vercel.com/v9/projects/${{ vars.VERCEL_PROJECT_ID }}/env" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_API_TOKEN }}")
-
-          echo "Current env vars: $ENV_RESPONSE"
-
-          # Update DATABASE_URL
-          curl -s -X PATCH "https://api.vercel.com/v9/projects/${{ vars.VERCEL_PROJECT_ID }}/env" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '[{
-              "key": "DATABASE_URL",
-              "value": "${{ steps.create-branch.outputs.connection_string }}",
-              "target": ["preview", "production"]
-            }]' \
-            -w "\nStatus: %{http_code}\n"
-
-      - name: Trigger Vercel redeploy
-        run: |
-          echo "Triggering Vercel redeploy..."
-          curl -s -X POST "https://api.vercel.com/v13/deployments" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"projectId\": \"${{ vars.VERCEL_PROJECT_ID }}\",
-              \"source\": \"github\"
-            }" \
-            -w "\nStatus: %{http_code}\n" || echo "Redeploy request sent (may be processed asynchronously)"
-
-      - name: Notify completion
-        if: success()
+      - name: Notify completion (restore)
+        if: steps.check-branch.outputs.branch_exists == 'true'
         run: |
           echo "✅ Development database sync completed successfully!"
-          echo "- New development branch created from main (old one auto-deleted by Neon)"
-          echo "- Vercel env vars updated"
-          echo "- Redeploy triggered"
+          echo "- Development branch restored from production"
+          echo "- All data synchronized"
+          echo "- Connection string unchanged - no .env update needed!"
+
+      - name: Notify completion (new branch)
+        if: steps.check-branch.outputs.branch_exists == 'false'
+        run: |
+          echo "✅ Development database created successfully!"
+          echo "- New development branch created from production"
+          echo "- ⚠️ IMPORTANT: Update DATABASE_URL in your local .env file"
+          echo "- Connection string: ${{ steps.create-branch.outputs.connection_string }}"
