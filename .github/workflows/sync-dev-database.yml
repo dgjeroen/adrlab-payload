@@ -133,14 +133,16 @@ jobs:
             ENDPOINT_ID="$EXISTING_ENDPOINT"
           fi
 
-          # Get endpoint details to retrieve connection string
-          ENDPOINT_DETAILS=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/endpoints/$ENDPOINT_ID" \
+          # Get connection URI from branch using connection_uri API
+          CONNECTION_URI_RESPONSE=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&role_name=neondb_owner&database_name=neondb&pooled=true" \
             -H "Authorization: Bearer $NEON_API_KEY")
 
-          CONNECTION_STRING=$(echo "$ENDPOINT_DETAILS" | jq -r '.endpoint.connection_uris[0].connection_uri // empty')
+          echo "Connection URI response: $CONNECTION_URI_RESPONSE"
+
+          CONNECTION_STRING=$(echo "$CONNECTION_URI_RESPONSE" | jq -r '.uri // empty')
 
           if [ -z "$CONNECTION_STRING" ]; then
-            echo "❌ Failed to get connection string from endpoint"
+            echo "❌ Failed to get connection string"
             exit 1
           fi
 
