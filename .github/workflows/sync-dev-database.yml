@@ -57,6 +57,7 @@ jobs:
 
       - name: Restore development branch from production
         if: steps.check-branch.outputs.branch_exists == 'true'
+        id: restore-branch
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
@@ -73,14 +74,70 @@ jobs:
 
           echo "Restore response: $RESPONSE"
 
+          # Get new branch ID after restore
+          NEW_BRANCH_ID=$(echo "$RESPONSE" | jq -r '.branch.id')
+
           # Check if restore was successful
-          if echo "$RESPONSE" | jq -e '.branch' > /dev/null 2>&1; then
-            echo "✅ Development branch restored from production!"
-            echo "💡 Connection string remains the same - no .env update needed"
+          if [ ! -z "$NEW_BRANCH_ID" ] && [ "$NEW_BRANCH_ID" != "null" ]; then
+            echo "new_branch_id=$NEW_BRANCH_ID" >> $GITHUB_OUTPUT
+            echo "✅ Development branch restored! New ID: $NEW_BRANCH_ID"
           else
             echo "⚠️ Restore may have failed, check response above"
             echo "Falling back to recreation..."
             exit 1
+          fi
+
+      - name: Ensure endpoint exists after restore
+        if: steps.check-branch.outputs.branch_exists == 'true'
+        id: ensure-endpoint
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          BRANCH_ID="${{ steps.restore-branch.outputs.new_branch_id }}"
+          echo "Checking if branch $BRANCH_ID has an endpoint..."
+
+          # Get branch details
+          BRANCH_RESPONSE=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches/$BRANCH_ID" \
+            -H "Authorization: Bearer $NEON_API_KEY")
+
+          # Check if connection_uris exist and are not empty
+          HAS_ENDPOINT=$(echo "$BRANCH_RESPONSE" | jq -r '.connection_uris | length')
+
+          if [ "$HAS_ENDPOINT" -eq "0" ] || [ "$HAS_ENDPOINT" == "null" ]; then
+            echo "⚠️ No endpoint found - creating one..."
+            
+            # Create endpoint
+            ENDPOINT_RESPONSE=$(curl -s -X POST "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/endpoints" \
+              -H "Authorization: Bearer $NEON_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"endpoint\": {
+                  \"branch_id\": \"$BRANCH_ID\",
+                  \"type\": \"read_write\"
+                }
+              }")
+            
+            echo "Endpoint creation response: $ENDPOINT_RESPONSE"
+            
+            # Wait for endpoint to be ready
+            echo "Waiting 10 seconds for endpoint to initialize..."
+            sleep 10
+            
+            # Get connection string from endpoint response
+            CONNECTION_STRING=$(echo "$ENDPOINT_RESPONSE" | jq -r '.connection_uris[0].connection_uri // empty')
+            
+            if [ -z "$CONNECTION_STRING" ]; then
+              echo "❌ Failed to create endpoint or get connection string"
+              exit 1
+            fi
+            
+            echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+            echo "✅ Endpoint created! Connection: ${CONNECTION_STRING:0:50}..."
+          else
+            echo "✅ Endpoint already exists"
+            CONNECTION_STRING=$(echo "$BRANCH_RESPONSE" | jq -r '.connection_uris[0].connection_uri')
+            echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+            echo "Connection: ${CONNECTION_STRING:0:50}..."
           fi
 
       - name: Create new development branch from production
@@ -129,7 +186,10 @@ jobs:
           echo "✅ Development database sync completed successfully!"
           echo "- Development branch restored from production"
           echo "- All data synchronized"
-          echo "- Connection string unchanged - no .env update needed!"
+          echo "- Endpoint ensured: ${{ steps.ensure-endpoint.outputs.connection_string }}"
+          echo ""
+          echo "⚠️ IMPORTANT: If connection string changed, update your local .env:"
+          echo "DATABASE_URL=${{ steps.ensure-endpoint.outputs.connection_string }}"
 
       - name: Notify completion (new branch)
         if: steps.check-branch.outputs.branch_exists == 'false'
