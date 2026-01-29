@@ -96,14 +96,16 @@ jobs:
           BRANCH_ID="${{ steps.restore-branch.outputs.new_branch_id }}"
           echo "Checking if branch $BRANCH_ID has an endpoint..."
 
-          # Get branch details
-          BRANCH_RESPONSE=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/branches/$BRANCH_ID" \
+          # Get all endpoints for the project
+          ENDPOINTS_RESPONSE=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/endpoints" \
             -H "Authorization: Bearer $NEON_API_KEY")
 
-          # Check if connection_uris exist and are not empty
-          HAS_ENDPOINT=$(echo "$BRANCH_RESPONSE" | jq -r '.connection_uris | length')
+          echo "Endpoints response: $ENDPOINTS_RESPONSE"
 
-          if [ "$HAS_ENDPOINT" -eq "0" ] || [ "$HAS_ENDPOINT" == "null" ]; then
+          # Check if an endpoint exists for this branch
+          EXISTING_ENDPOINT=$(echo "$ENDPOINTS_RESPONSE" | jq -r ".endpoints[] | select(.branch_id == \"$BRANCH_ID\") | .id" | head -1)
+
+          if [ -z "$EXISTING_ENDPOINT" ] || [ "$EXISTING_ENDPOINT" == "null" ]; then
             echo "⚠️ No endpoint found - creating one..."
             
             # Create endpoint
@@ -123,22 +125,25 @@ jobs:
             echo "Waiting 10 seconds for endpoint to initialize..."
             sleep 10
             
-            # Get connection string from endpoint response
-            CONNECTION_STRING=$(echo "$ENDPOINT_RESPONSE" | jq -r '.connection_uris[0].connection_uri // empty')
-            
-            if [ -z "$CONNECTION_STRING" ]; then
-              echo "❌ Failed to create endpoint or get connection string"
-              exit 1
-            fi
-            
-            echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
-            echo "✅ Endpoint created! Connection: ${CONNECTION_STRING:0:50}..."
+            ENDPOINT_ID=$(echo "$ENDPOINT_RESPONSE" | jq -r '.endpoint.id')
           else
-            echo "✅ Endpoint already exists"
-            CONNECTION_STRING=$(echo "$BRANCH_RESPONSE" | jq -r '.connection_uris[0].connection_uri')
-            echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
-            echo "Connection: ${CONNECTION_STRING:0:50}..."
+            echo "✅ Endpoint already exists: $EXISTING_ENDPOINT"
+            ENDPOINT_ID="$EXISTING_ENDPOINT"
           fi
+
+          # Get endpoint details to retrieve connection string
+          ENDPOINT_DETAILS=$(curl -s "https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}/endpoints/$ENDPOINT_ID" \
+            -H "Authorization: Bearer $NEON_API_KEY")
+
+          CONNECTION_STRING=$(echo "$ENDPOINT_DETAILS" | jq -r '.endpoint.connection_uris[0].connection_uri // empty')
+
+          if [ -z "$CONNECTION_STRING" ]; then
+            echo "❌ Failed to get connection string from endpoint"
+            exit 1
+          fi
+
+          echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+          echo "✅ Connection string: ${CONNECTION_STRING:0:50}..."
 
       - name: Create new development branch from production
         if: steps.check-branch.outputs.branch_exists == 'false'
